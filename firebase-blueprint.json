@@ -1,0 +1,154 @@
+{
+  "entities": {
+    "Notice": {
+      "title": "Society Notice",
+      "description": "Announcements and official communications for society members.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "category": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "isArchived": { "type": "boolean" }
+      },
+      "required": ["title", "content", "date"]
+    },
+    "Document": {
+      "title": "Society Document",
+      "description": "Official documents like bye-laws, registration certificates, etc.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "url": { "type": "string" },
+        "uploadedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "category", "url"]
+    },
+    "RFP": {
+      "title": "Request for Proposal",
+      "description": "Bids and tenders for society works.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "status": { "type": "string", "enum": ["Open", "Under Review", "Awarded", "Closed"] },
+        "deadline": { "type": "string", "format": "date-time" },
+        "sowUrl": { "type": "string", "description": "Statement of Work document URL" },
+        "selectionCriteria": { "type": "string" },
+        "shortlistedVendorId": { "type": "string" },
+        "bids": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "vendorName": { "type": "string" },
+              "bidAmount": { "type": "string" },
+              "proposalUrl": { "type": "string" },
+              "submittedAt": { "type": "string", "format": "date-time" }
+            }
+          }
+        }
+      },
+      "required": ["title", "status", "deadline"]
+    },
+    "Financial": {
+      "title": "Financial Record",
+      "description": "Monthly income and expenditure reports.",
+      "type": "object",
+      "properties": {
+        "month": { "type": "string" },
+        "income": { "type": "string" },
+        "expenditure": { "type": "string" },
+        "reportUrl": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["month", "income", "expenditure", "reportUrl"]
+    },
+    "MeetingMinute": {
+      "title": "Meeting Minutes",
+      "description": "Transcripts and records of society meetings.",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string" },
+        "title": { "type": "string" },
+        "url": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["date", "title", "url"]
+    },
+    "MaintenanceTicket": {
+      "title": "Service Request Ticket",
+      "description": "Request raised by a society member for various services.",
+      "type": "object",
+      "properties": {
+        "ticketId": { "type": "string", "description": "Unique ID in format MORYA-YYYY-XXXX" },
+        "name": { "type": "string" },
+        "flatNumber": { "type": "string" },
+        "mobileNumber": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "type": { "type": "string", "enum": ["Community Hall Booking", "Rent / Move-in / Move-out", "Furniture Work", "Heavy Material Movement", "General Request"] },
+        "description": { "type": "string" },
+        "preferredDate": { "type": "string", "format": "date" },
+        "status": { "type": "string", "enum": ["Open", "In Progress", "Closed"] },
+        "assignedTo": { "type": "string" },
+        "remarks": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ticketId", "name", "flatNumber", "email", "type", "description", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/notices/{noticeId}": {
+      "schema": "Notice",
+      "description": "Collection of society notices"
+    },
+    "/documents/{docId}": {
+      "schema": "Document",
+      "description": "Collection of society documents"
+    },
+    "/rfps/{rfpId}": {
+      "schema": "RFP",
+      "description": "Collection of active and past RFPs"
+    },
+    "/financials/{financialId}": {
+      "schema": "Financial",
+      "description": "Monthly financial reports"
+    },
+    "/minutes/{minuteId}": {
+      "schema": "MeetingMinute",
+      "description": "Records of society meetings"
+    },
+    "/tickets/{ticketDocId}": {
+      "schema": "MaintenanceTicket",
+      "description": "Collection of service requests"
+    },
+    "/settings/{settingId}": {
+      "schema": {
+        "type": "object",
+        "properties": {
+          "memberCount": { "type": "string" },
+          "societyName": { "type": "string" },
+          "societyAddress": { "type": "string" },
+          "societyEmail": { "type": "string" },
+          "societyPhone": { "type": "string" },
+          "committeeMembers": {
+            "type": "array",
+            "maxItems": 20,
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string" },
+                "name": { "type": "string" },
+                "role": { "type": "string" }
+              }
+            }
+          }
+        }
+      },
+      "description": "Global application settings and stats"
+    }
+  }
+}

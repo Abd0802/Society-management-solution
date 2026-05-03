@@ -1,0 +1,131 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        request.auth.token.email == "adashutosh@gmail.com"
+      );
+    }
+
+    // --- Financial Rules ---
+    // --- Settings Rules ---
+    match /settings/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /financials/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // --- Minute Rules ---
+    match /minutes/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // --- Audit Trail Rules ---
+    match /audit_trail/{id} {
+      allow read: if isAdmin();
+      allow create: if isSignedIn();
+      allow update, delete: if false; 
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // --- Notice Rules ---
+    function isValidNotice(data) {
+      return data.title is string && data.title.size() > 0 && data.title.size() < 200
+          && data.content is string && data.content.size() > 0
+          && data.date is timestamp;
+    }
+
+    match /notices/{noticeId} {
+      allow read: if true;
+      allow create: if isAdmin() && isValidNotice(incoming());
+      allow update: if isAdmin() && isValidNotice(incoming());
+      allow delete: if isAdmin();
+    }
+
+    // --- Document Rules ---
+    match /documents/{docId} {
+      allow read: if true;
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // --- RFP Rules ---
+    match /rfps/{rfpId} {
+      allow read: if true;
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // --- Ticket Rules ---
+    function isValidTicket(data) {
+      return data.ticketId is string && data.ticketId.matches('^MORYA-[0-9]{4}-[0-9]{4}$')
+          && data.name is string && data.name.size() > 0 && data.name.size() < 100
+          && data.flatNumber is string && data.flatNumber.size() > 0
+          && data.email is string && data.email.size() > 0
+          && data.type is string && data.type in ["Community Hall Booking", "Rent / Move-in / Move-out", "Furniture Work", "Heavy Material Movement", "General Request"]
+          && data.description is string && data.description.size() > 0
+          && data.status in ["Open", "In Progress", "Closed"]
+          && data.createdAt == request.time;
+    }
+
+    match /tickets/{ticketDocId} {
+      // Anyone can 'get' a ticket if they know the doc ID (which we'll use as the internal reference)
+      // Or they can 'list' if they filter by their email OR track by Ticket ID field.
+      allow get: if true; 
+      
+      // For 'list', we want to enforce security boundaries.
+      // If someone queries, they must be targeting their own email OR providing a specific ticket ID.
+      allow list: if (
+        (incoming() == null && (resource.data.email == request.auth.token.email || resource.data.ticketId == request.query.limit(1).ticketId)) // This is tricky in rules
+      ) || isAdmin();
+      
+      // Simplest secure list for this specific use case:
+      // Allow list if the query filters by ticketId (point query) or by owner email.
+      // But rules can't easily check 'request.query'.
+      // Instead, we allow list if the resource data matches a provided auth email.
+      allow list: if (isSignedIn() && resource.data.email == request.auth.token.email) || isAdmin();
+
+      // For "Track Your Request" search, we'll actually use a 'get' if we use ticketId as docId.
+      // If ticketId is NOT docId, we use list. 
+      // Let's use 'get' for simplicity if we can map ticketId to docId, but ticketId is formatted. 
+      // Actually, allow list if they know the ticketId and the name/email (client verification).
+      // For now:
+      allow create: if isValidTicket(incoming()) 
+                     && incoming().status == "Open"
+                     && incoming().updatedAt == request.time;
+      
+      allow update: if isAdmin() 
+                     && incoming().updatedAt == request.time
+                     && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'assignedTo', 'remarks', 'updatedAt']);
+    }
+  }
+}
